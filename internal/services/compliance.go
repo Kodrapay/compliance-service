@@ -3,8 +3,6 @@ package services
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/kodra-pay/compliance-service/internal/dto"
 )
 
@@ -13,7 +11,10 @@ type ComplianceService struct{}
 func NewComplianceService() *ComplianceService { return &ComplianceService{} }
 
 func (s *ComplianceService) WriteAudit(_ context.Context, req dto.AuditLogRequest) dto.AuditLogResponse {
-	return dto.AuditLogResponse{ID: "audit_" + uuid.NewString()}
+	// In a real scenario, this would interact with a repository to create an audit log
+	// and retrieve the auto-generated ID. For this mock implementation, we return a placeholder.
+	// req.ActorID (int) and req.EntityID (int) are now available in the request.
+	return dto.AuditLogResponse{ID: 1} // Placeholder for an auto-generated int ID
 }
 
 func (s *ComplianceService) ListAudit(_ context.Context) []dto.AuditLogResponse {

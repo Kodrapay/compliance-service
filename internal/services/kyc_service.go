@@ -25,7 +25,7 @@ func NewKYCService(repo *repositories.KYCRepository) *KYCService {
 // Submit processes a KYC submission request
 func (s *KYCService) Submit(ctx context.Context, req dto.KYCSubmissionRequest) (*dto.KYCSubmissionResponse, error) {
 	// Validate required fields
-	if req.MerchantID == "" {
+	if req.MerchantID == 0 { // int check
 		return nil, fmt.Errorf("merchant_id is required")
 	}
 	if req.BusinessName == "" {
@@ -33,9 +33,11 @@ func (s *KYCService) Submit(ctx context.Context, req dto.KYCSubmissionRequest) (
 	}
 
 	// Normalize business type
-	businessType := strings.ToLower(strings.TrimSpace(req.BusinessType))
+
+businessType := strings.ToLower(strings.TrimSpace(req.BusinessType))
 	if businessType == "" {
-		businessType = "registered"
+	
+businessType = "registered"
 	}
 	if businessType != "registered" && businessType != "startup" {
 		return nil, fmt.Errorf("business_type must be 'registered' or 'startup'")
@@ -43,7 +45,7 @@ func (s *KYCService) Submit(ctx context.Context, req dto.KYCSubmissionRequest) (
 
 	// Create submission model
 	submission := &models.KYCSubmission{
-		MerchantID:       req.MerchantID,
+		MerchantID:       req.MerchantID, // int
 		BusinessType:     businessType,
 		BusinessName:     req.BusinessName,
 		CACNumber:        req.CACNumber,
@@ -74,21 +76,21 @@ func (s *KYCService) Submit(ctx context.Context, req dto.KYCSubmissionRequest) (
 	}
 
 	// Update merchant KYC status to pending via merchant service
-	if err := s.updateMerchantKYCStatus(req.MerchantID, "pending"); err != nil {
+	if err := s.updateMerchantKYCStatus(req.MerchantID, "pending"); err != nil { // int
 		// Log error but don't fail the submission
 		fmt.Printf("Warning: failed to update merchant KYC status: %v\n", err)
 	}
 
 	return &dto.KYCSubmissionResponse{
-		SubmissionID: submission.ID,
+		SubmissionID: submission.ID, // int
 		Status:       "pending",
 		Message:      "KYC submission received and is under review",
 	}, nil
 }
 
 // GetLatest retrieves the latest KYC submission for a merchant
-func (s *KYCService) GetLatest(ctx context.Context, merchantID string) (*dto.KYCStatusResponse, error) {
-	submission, err := s.repo.GetLatestByMerchant(ctx, merchantID)
+func (s *KYCService) GetLatest(ctx context.Context, merchantID int) (*dto.KYCStatusResponse, error) { // int
+	submission, err := s.repo.GetLatestByMerchant(ctx, merchantID) // int
 	if err != nil {
 		return nil, fmt.Errorf("failed to get KYC status: %w", err)
 	}
@@ -97,11 +99,11 @@ func (s *KYCService) GetLatest(ctx context.Context, merchantID string) (*dto.KYC
 	}
 
 	return &dto.KYCStatusResponse{
-		MerchantID:  submission.MerchantID,
+		MerchantID:  submission.MerchantID, // int
 		Status:      submission.Status,
 		SubmittedAt: submission.CreatedAt.Format(time.RFC3339),
 		ReviewedAt:  timePtrToString(submission.ReviewedAt),
-		ReviewerID:  stringPtrToString(submission.ReviewerID),
+		ReviewerID:  intPtrToInt(submission.ReviewerID), // *int
 		ReviewNotes: stringPtrToString(submission.ReviewNotes),
 	}, nil
 }
@@ -115,20 +117,23 @@ func (s *KYCService) UpdateStatus(ctx context.Context, req dto.KYCStatusUpdateRe
 	}
 
 	// Get the latest submission for this merchant
-	latest, err := s.repo.GetLatestByMerchant(ctx, req.MerchantID)
+	latest, err := s.repo.GetLatestByMerchant(ctx, req.MerchantID) // int
 	if err != nil || latest == nil {
 		return fmt.Errorf("no KYC submission found for merchant")
 	}
 
 	// Update status in database
-	reviewerID := &req.ReviewerID
+	var reviewerID *int // Now *int
+	if req.ReviewerID != 0 {
+		reviewerID = &req.ReviewerID
+	}
 	notes := &req.ReviewNotes
-	if err := s.repo.UpdateStatus(ctx, latest.ID, status, reviewerID, notes); err != nil {
+	if err := s.repo.UpdateStatus(ctx, latest.ID, status, reviewerID, notes); err != nil { // int, *int
 		return fmt.Errorf("failed to update KYC status: %w", err)
 	}
 
 	// Sync merchant KYC status
-	if err := s.updateMerchantKYCStatus(req.MerchantID, status); err != nil {
+	if err := s.updateMerchantKYCStatus(req.MerchantID, status); err != nil { // int
 		// Log error but don't fail the update
 		fmt.Printf("Warning: failed to sync merchant KYC status: %v\n", err)
 	}
@@ -150,11 +155,11 @@ func (s *KYCService) ListByStatus(ctx context.Context, status string, limit int)
 	responses := make([]dto.KYCStatusResponse, 0, len(submissions))
 	for _, sub := range submissions {
 		responses = append(responses, dto.KYCStatusResponse{
-			MerchantID:  sub.MerchantID,
+			MerchantID:  sub.MerchantID, // int
 			Status:      sub.Status,
 			SubmittedAt: sub.CreatedAt.Format(time.RFC3339),
 			ReviewedAt:  timePtrToString(sub.ReviewedAt),
-			ReviewerID:  stringPtrToString(sub.ReviewerID),
+			ReviewerID:  intPtrToInt(sub.ReviewerID), // *int
 			ReviewNotes: stringPtrToString(sub.ReviewNotes),
 		})
 	}
@@ -166,9 +171,9 @@ func (s *KYCService) ListByStatus(ctx context.Context, status string, limit int)
 }
 
 // Helper function to update merchant KYC status via merchant service
-func (s *KYCService) updateMerchantKYCStatus(merchantID, status string) error {
+func (s *KYCService) updateMerchantKYCStatus(merchantID int, status string) error { // int
 	// Call merchant service to update KYC status
-	url := fmt.Sprintf("http://merchant-service:7002/merchants/%s/kyc-status", merchantID)
+	url := fmt.Sprintf("http://merchant-service:7002/merchants/%d/kyc-status", merchantID) // int, changed %s to %d
 
 	payload := map[string]string{
 		"kyc_status": status,
@@ -212,4 +217,12 @@ func stringPtrToString(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// intPtrToInt converts *int to int, returning 0 if nil
+func intPtrToInt(i *int) int {
+	if i == nil {
+		return 0 // Or handle as an error, depending on requirements
+	}
+	return *i
 }
