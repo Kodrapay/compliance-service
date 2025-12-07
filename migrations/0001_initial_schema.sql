@@ -1,0 +1,25 @@
+-- Create kyc_records table
+CREATE TABLE IF NOT EXISTS kyc_records (
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    document_type VARCHAR(100),
+    document_id VARCHAR(255),
+    issue_date TIMESTAMP,
+    expiry_date TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create transaction_monitoring_alerts table
+CREATE TABLE IF NOT EXISTS transaction_monitoring_alerts (
+    id VARCHAR(255) PRIMARY KEY,
+    transaction_id VARCHAR(255) NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    rule_triggered TEXT NOT NULL,
+    severity VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
