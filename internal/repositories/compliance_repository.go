@@ -12,10 +12,10 @@ import (
 // ComplianceRepository defines the interface for compliance data operations
 type ComplianceRepository interface {
 	CreateKYCRecord(record *models.KYCRecord) error
-	GetKYCRecordByID(id string) (*models.KYCRecord, error)
+	GetKYCRecordByID(id int) (*models.KYCRecord, error)
 	UpdateKYCRecord(record *models.KYCRecord) error
 	CreateTransactionMonitoringAlert(alert *models.TransactionMonitoringAlert) error
-	GetTransactionMonitoringAlertByID(id string) (*models.TransactionMonitoringAlert, error)
+	GetTransactionMonitoringAlertByID(id int) (*models.TransactionMonitoringAlert, error)
 	UpdateTransactionMonitoringAlert(alert *models.TransactionMonitoringAlert) error
 }
 
@@ -30,12 +30,16 @@ func NewPostgresComplianceRepository(db *sql.DB) ComplianceRepository {
 }
 
 func (r *postgresComplianceRepository) CreateKYCRecord(record *models.KYCRecord) error {
-	query := `INSERT INTO kyc_records (id, user_id, status, document_type, document_id, issue_date, expiry_date, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	_, err := r.db.Exec(query, record.ID, record.UserID, record.Status, record.DocumentType, record.DocumentID, record.IssueDate, record.ExpiryDate, time.Now(), time.Now())
+	query := `INSERT INTO kyc_records (user_id, status, document_type, document_id, issue_date, expiry_date, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+	var id int
+	err := r.db.QueryRow(query, record.UserID, record.Status, record.DocumentType, record.DocumentID, record.IssueDate, record.ExpiryDate, time.Now(), time.Now()).Scan(&id)
+	if err == nil {
+		record.ID = id
+	}
 	return err
 }
 
-func (r *postgresComplianceRepository) GetKYCRecordByID(id string) (*models.KYCRecord, error) {
+func (r *postgresComplianceRepository) GetKYCRecordByID(id int) (*models.KYCRecord, error) {
 	record := &models.KYCRecord{}
 	query := `SELECT id, user_id, status, document_type, document_id, issue_date, expiry_date, created_at, updated_at FROM kyc_records WHERE id = $1`
 	err := r.db.QueryRow(query, id).Scan(&record.ID, &record.UserID, &record.Status, &record.DocumentType, &record.DocumentID, &record.IssueDate, &record.ExpiryDate, &record.CreatedAt, &record.UpdatedAt)
@@ -52,12 +56,16 @@ func (r *postgresComplianceRepository) UpdateKYCRecord(record *models.KYCRecord)
 }
 
 func (r *postgresComplianceRepository) CreateTransactionMonitoringAlert(alert *models.TransactionMonitoringAlert) error {
-	query := `INSERT INTO transaction_monitoring_alerts (id, transaction_id, user_id, rule_triggered, severity, status, description, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	_, err := r.db.Exec(query, alert.ID, alert.TransactionID, alert.UserID, alert.RuleTriggered, alert.Severity, alert.Status, alert.Description, time.Now(), time.Now())
+	query := `INSERT INTO transaction_monitoring_alerts (transaction_id, user_id, rule_triggered, severity, status, description, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+	var id int
+	err := r.db.QueryRow(query, alert.TransactionID, alert.UserID, alert.RuleTriggered, alert.Severity, alert.Status, alert.Description, time.Now(), time.Now()).Scan(&id)
+	if err == nil {
+		alert.ID = id
+	}
 	return err
 }
 
-func (r *postgresComplianceRepository) GetTransactionMonitoringAlertByID(id string) (*models.TransactionMonitoringAlert, error) {
+func (r *postgresComplianceRepository) GetTransactionMonitoringAlertByID(id int) (*models.TransactionMonitoringAlert, error) {
 	alert := &models.TransactionMonitoringAlert{}
 	query := `SELECT id, transaction_id, user_id, rule_triggered, severity, status, description, created_at, updated_at FROM transaction_monitoring_alerts WHERE id = $1`
 	err := r.db.QueryRow(query, id).Scan(&alert.ID, &alert.TransactionID, &alert.UserID, &alert.RuleTriggered, &alert.Severity, &alert.Status, &alert.Description, &alert.CreatedAt, &alert.UpdatedAt)

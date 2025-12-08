@@ -8,21 +8,11 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/kodra-pay/compliance-service/internal/config"
-	"github.com/kodra-pay/compliance-service/internal/handlers"
-	"github.com/kodra-pay/compliance-service/internal/repositories"
 	"github.com/kodra-pay/compliance-service/internal/routes"
-	"github.com/kodra-pay/compliance-service/internal/services"
 )
 
 func main() {
 	cfg := config.LoadConfig()
-
-	// Initialize database
-	db, err := repositories.InitDB(cfg.DatabaseURL)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer db.Close()
 
 	// Initialize Fiber app
 	app := fiber.New()
@@ -31,13 +21,8 @@ func main() {
 	app.Use(logger.New())
 	app.Use(recover.New())
 
-	// Setup dependencies
-	complianceRepo := repositories.NewPostgresComplianceRepository(db)
-	complianceService := services.NewComplianceService(complianceRepo)
-	complianceHandler := handlers.NewComplianceHandler(complianceService)
-
-	// Setup routes
-	routes.SetupComplianceRoutes(app, complianceHandler)
+	// Register routes (includes DB wiring for KYC)
+	routes.Register(app, "compliance-service")
 
 	// Start server
 	log.Printf("Compliance service starting on port %s", cfg.ServicePort)

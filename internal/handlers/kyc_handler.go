@@ -31,9 +31,9 @@ func (h *KYCHandler) SubmitKYC(c *fiber.Ctx) error {
 
 // GetKYCStatus retrieves the KYC status for a merchant
 func (h *KYCHandler) GetKYCStatus(c *fiber.Ctx) error {
-	merchantID := c.Params("merchant_id")
-	if merchantID == "" {
-		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
+	merchantID, err := c.ParamsInt("merchant_id")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid merchant ID")
 	}
 
 	status, err := h.service.GetLatest(c.Context(), merchantID)
@@ -59,7 +59,7 @@ func (h *KYCHandler) UpdateKYCStatus(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
-	if req.MerchantID == "" {
+	if req.MerchantID == 0 { // int check
 		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
 	}
 	if req.Status == "" {

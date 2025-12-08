@@ -56,8 +56,7 @@ func (r *KYCRepository) Create(ctx context.Context, submission *models.KYCSubmis
 	).Scan(&submission.ID, &submission.CreatedAt, &submission.UpdatedAt)
 }
 
-// GetByID retrieves a KYC submission by ID
-func (r *KYCRepository) GetByID(ctx context.Context, id string) (*models.KYCSubmission, error) {
+func (r *KYCRepository) GetByID(ctx context.Context, id int) (*models.KYCSubmission, error) {
 	query := `
 		SELECT id, merchant_id, business_type, business_name, cac_number, tin_number,
 			business_address, city, state, postal_code, incorporation_date,
@@ -70,6 +69,7 @@ func (r *KYCRepository) GetByID(ctx context.Context, id string) (*models.KYCSubm
 
 	var submission models.KYCSubmission
 	var docsJSON []byte
+	var reviewerID sql.NullInt32 // To handle nullable int
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&submission.ID,
@@ -90,7 +90,7 @@ func (r *KYCRepository) GetByID(ctx context.Context, id string) (*models.KYCSubm
 		&submission.DirectorEmail,
 		&docsJSON,
 		&submission.Status,
-		&submission.ReviewerID,
+		&reviewerID,
 		&submission.ReviewNotes,
 		&submission.ReviewedAt,
 		&submission.CreatedAt,
@@ -109,11 +109,19 @@ func (r *KYCRepository) GetByID(ctx context.Context, id string) (*models.KYCSubm
 		return nil, fmt.Errorf("failed to unmarshal documents: %w", err)
 	}
 
+	// Handle nullable reviewerID
+	if reviewerID.Valid {
+		val := int(reviewerID.Int32)
+		submission.ReviewerID = &val
+	} else {
+		submission.ReviewerID = nil
+	}
+
 	return &submission, nil
 }
 
 // GetLatestByMerchant retrieves the latest KYC submission for a merchant
-func (r *KYCRepository) GetLatestByMerchant(ctx context.Context, merchantID string) (*models.KYCSubmission, error) {
+func (r *KYCRepository) GetLatestByMerchant(ctx context.Context, merchantID int) (*models.KYCSubmission, error) {
 	query := `
 		SELECT id, merchant_id, business_type, business_name, cac_number, tin_number,
 			business_address, city, state, postal_code, incorporation_date,
@@ -128,6 +136,7 @@ func (r *KYCRepository) GetLatestByMerchant(ctx context.Context, merchantID stri
 
 	var submission models.KYCSubmission
 	var docsJSON []byte
+	var reviewerID sql.NullInt32
 
 	err := r.db.QueryRowContext(ctx, query, merchantID).Scan(
 		&submission.ID,
@@ -148,7 +157,7 @@ func (r *KYCRepository) GetLatestByMerchant(ctx context.Context, merchantID stri
 		&submission.DirectorEmail,
 		&docsJSON,
 		&submission.Status,
-		&submission.ReviewerID,
+		&reviewerID,
 		&submission.ReviewNotes,
 		&submission.ReviewedAt,
 		&submission.CreatedAt,
@@ -167,11 +176,19 @@ func (r *KYCRepository) GetLatestByMerchant(ctx context.Context, merchantID stri
 		return nil, fmt.Errorf("failed to unmarshal documents: %w", err)
 	}
 
+	// Handle nullable reviewerID
+	if reviewerID.Valid {
+		val := int(reviewerID.Int32)
+		submission.ReviewerID = &val
+	} else {
+		submission.ReviewerID = nil
+	}
+
 	return &submission, nil
 }
 
 // UpdateStatus updates the status of a KYC submission
-func (r *KYCRepository) UpdateStatus(ctx context.Context, id string, status string, reviewerID *string, notes *string) error {
+func (r *KYCRepository) UpdateStatus(ctx context.Context, id int, status string, reviewerID *int, notes *string) error {
 	query := `
 		UPDATE kyc_submissions
 		SET status = $1, reviewer_id = $2, review_notes = $3, reviewed_at = NOW(), updated_at = NOW()
@@ -218,6 +235,7 @@ func (r *KYCRepository) ListByStatus(ctx context.Context, status string, limit i
 	for rows.Next() {
 		var submission models.KYCSubmission
 		var docsJSON []byte
+		var reviewerID sql.NullInt32
 
 		if err := rows.Scan(
 			&submission.ID,
@@ -238,7 +256,7 @@ func (r *KYCRepository) ListByStatus(ctx context.Context, status string, limit i
 			&submission.DirectorEmail,
 			&docsJSON,
 			&submission.Status,
-			&submission.ReviewerID,
+			&reviewerID,
 			&submission.ReviewNotes,
 			&submission.ReviewedAt,
 			&submission.CreatedAt,
@@ -250,6 +268,14 @@ func (r *KYCRepository) ListByStatus(ctx context.Context, status string, limit i
 		// Unmarshal documents
 		if err := json.Unmarshal(docsJSON, &submission.Documents); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal documents: %w", err)
+		}
+
+		// Handle nullable reviewerID
+		if reviewerID.Valid {
+			val := int(reviewerID.Int32)
+			submission.ReviewerID = &val
+		} else {
+			submission.ReviewerID = nil
 		}
 
 		submissions = append(submissions, submission)

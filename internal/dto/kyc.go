@@ -2,7 +2,7 @@ package dto
 
 // KYCSubmissionRequest represents the request to submit KYC
 type KYCSubmissionRequest struct {
-	MerchantID        string            `json:"merchant_id"`
+	MerchantID        int               `json:"merchant_id"`
 	BusinessType      string            `json:"business_type"` // "registered" or "startup"
 	BusinessName      string            `json:"business_name"`
 	CACNumber         string            `json:"cac_number,omitempty"`
@@ -22,26 +22,26 @@ type KYCSubmissionRequest struct {
 
 // KYCSubmissionResponse represents the response after KYC submission
 type KYCSubmissionResponse struct {
-	SubmissionID string `json:"submission_id"`
+	SubmissionID int `json:"submission_id"`
 	Status       string `json:"status"`
 	Message      string `json:"message"`
 }
 
 // KYCStatusUpdateRequest represents a request to update KYC status (admin only)
 type KYCStatusUpdateRequest struct {
-	MerchantID  string `json:"merchant_id"`
+	MerchantID  int    `json:"merchant_id"`
 	Status      string `json:"status"` // "approved", "rejected", or "pending"
-	ReviewerID  string `json:"reviewer_id"`
+	ReviewerID  int    `json:"reviewer_id"`
 	ReviewNotes string `json:"review_notes,omitempty"`
 }
 
 // KYCStatusResponse represents the KYC status for a merchant
 type KYCStatusResponse struct {
-	MerchantID  string `json:"merchant_id"`
+	MerchantID  int    `json:"merchant_id"`
 	Status      string `json:"status"`
 	SubmittedAt string `json:"submitted_at,omitempty"`
 	ReviewedAt  string `json:"reviewed_at,omitempty"`
-	ReviewerID  string `json:"reviewer_id,omitempty"`
+	ReviewerID  int    `json:"reviewer_id,omitempty"`
 	ReviewNotes string `json:"review_notes,omitempty"`
 }
 
